@@ -1,0 +1,27 @@
+# ============================================================
+# Dependensi chatbot SOCA (SOCA.py). Python 3.13.
+# Versi dipin agar sama dengan lingkungan yang teruji.
+#
+# CATATAN: torch dipasang TERPISAH lebih dulu (versi CPU):
+#   pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+# ============================================================
+
+# --- Backend web ---
+fastapi==0.136.1
+uvicorn==0.46.0
+
+# --- RAG: vector DB, klien LLM, embedding ---
+qdrant-client==1.17.1
+openai==2.33.0
+sentence-transformers==5.4.1
+transformers==5.5.3
+
+# --- Safety / Guardrails ---
+guardrails-ai==0.9.3
+
+# --- SSH ke VPS Wazuh (untuk /reload & auto-sync) ---
+paramiko==4.0.0
+
+# --- Utilitas ---
+python-dotenv==1.2.2
+numpy==2.1.2

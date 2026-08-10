@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SOCA — Security Operations Center Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g900:#064e3b;--g700:#047857;--g500:#10b981;--g400:#34d399;--g100:#d1fae5;--g50:#ecfdf5;
+  --white:#fff;--gray50:#f9fafb;--gray100:#f3f4f6;--gray200:#e5e7eb;--gray300:#d1d5db;
+  --gray400:#9ca3af;--gray500:#6b7280;--gray700:#374151;--gray900:#111827;
+  --red50:#fef2f2;--red300:#fca5a5;--red600:#dc2626;
+  --sans:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --rsm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+}
+html.dark{
+  --white:#1e293b;--gray50:#0f172a;--gray100:#1e293b;--gray200:#334155;
+  --gray300:#475569;--gray400:#64748b;--gray500:#94a3b8;--gray700:#cbd5e1;--gray900:#f1f5f9;
+  --red50:#2d1516;--red300:#f87171;--red600:#f87171;
+  --g50:#022c22;--g100:#064e3b;
+  --rsm:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);
+}
+html,body,#root{height:100%}
+body{font-family:var(--sans);background:var(--gray50);color:var(--gray900);-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--gray200);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--gray400)}
+@keyframes fadeUp   {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes loginIn  {from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes spin     {to{transform:rotate(360deg)}}
+@keyframes pulse    {0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes dotBounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+@keyframes bgShift  {0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback} = React;
+
+/* ── SVG icons ── */
+const Ico = ({d,s=16,c="currentColor",sw=2}) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none"
+    stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+    <path d={d}/>
+  </svg>
+);
+const IcoShield  = ({s=18}) => <Ico d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" s={s}/>;
+const IcoSend    = () => <Ico d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" s={17}/>;
+const IcoZap     = () => <Ico d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" s={13}/>;
+const IcoRefresh = () => <Ico d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" s={13}/>;
+const IcoTerm    = () => <Ico d="M4 17l6-6-6-6M12 19h8" s={13}/>;
+const IcoInfo    = () => <Ico d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 8h.01M11 12h1v4h1" s={13}/>;
+const IcoClear   = () => <Ico d="M18 6L6 18M6 6l12 12" s={13}/>;
+const IcoEye     = () => <Ico d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z" s={16}/>;
+const IcoEyeOff  = () => <Ico d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" s={16}/>;
+const IcoLogout  = () => <Ico d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" s={15}/>;
+const IcoTrash   = () => <Ico d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2" s={13}/>;
+const IcoSync    = () => <Ico d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16" s={13}/>;
+const IcoMoon    = () => <Ico d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" s={16}/>;
+const IcoBook    = () => <Ico d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" s={15}/>;
+const IcoChat    = () => <Ico d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" s={15}/>;
+const IcoLock    = () => <Ico d="M5 11h14a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7a2 2 0 012-2zM7 11V7a5 5 0 0110 0v4" s={15}/>;
+const IcoDb      = () => <Ico d="M12 2c4.42 0 8 1.34 8 3s-3.58 3-8 3-8-1.34-8-3 3.58-3 8-3zM4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" s={15}/>;
+const IcoRocket  = () => <Ico d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09zM12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z" s={15}/>;
+const IcoHelp    = () => <Ico d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" s={15}/>;
+const IcoList    = () => <Ico d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" s={15}/>;
+const IcoCopy    = () => <Ico d="M20 9H11a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-9a2 2 0 00-2-2zM5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" s={13}/>;
+const IcoCheck   = () => <Ico d="M20 6L9 17l-5-5" s={13}/>;
+const IcoDown    = () => <Ico d="M12 5v14M19 12l-7 7-7-7" s={15}/>;
+const IcoSun     = ({s=16}) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+);
+
+const now = () => new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+
+/* ════════════════════════════════════════
+   LOGIN SCREEN
+════════════════════════════════════════ */
+function LoginScreen({onLogin,dark,toggleDark}){
+  const [user,   setUser]  = useState("");
+  const [pass,   setPass]  = useState("");
+  const [show,   setShow]  = useState(false);
+  const [err,    setErr]   = useState("");
+  const [loading,setLoad]  = useState(false);
+
+  const submit = async(e)=>{
+    e.preventDefault();
+    if(!user||!pass){ setErr("Username dan password wajib diisi."); return; }
+    setLoad(true); setErr("");
+    try{
+      const r = await fetch("/api/login",{
+        method:"POST",
+        headers:{"Authorization":"Basic "+btoa(`${user}:${pass}`)},
+      });
+      if(r.ok){
+        const d = await r.json();
+        onLogin({user, pass, model:d.model||"-"});
+      } else {
+        const d = await r.json().catch(()=>({}));
+        setErr(d.detail||"Login gagal.");
+      }
+    }catch{
+      setErr("Tidak dapat terhubung ke server. Pastikan backend sudah berjalan.");
+    }
+    setLoad(false);
+  };
+
+  const fieldStyle = {
+    width:"100%", border:"1.5px solid var(--gray200)", borderRadius:10,
+    padding:"11px 14px", fontSize:14, color:"var(--gray900)",
+    background:"var(--gray50)", outline:"none",
+    transition:"border .15s,box-shadow .15s", fontFamily:"var(--sans)",
+  };
+  const focusField  = e=>{ e.target.style.borderColor="var(--g400)"; e.target.style.boxShadow="0 0 0 3px rgba(16,185,129,.12)"; };
+  const blurField   = e=>{ e.target.style.borderColor="var(--gray200)"; e.target.style.boxShadow="none"; };
+
+  return (
+    <div style={{
+      minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
+      padding:"24px",
+      background:"linear-gradient(135deg,var(--g900) 0%,var(--g700) 45%,#065f46 100%)",
+      backgroundSize:"200% 200%", animation:"bgShift 8s ease infinite",
+    }}>
+      {/* dark mode toggle */}
+      <button onClick={toggleDark} title={dark?"Mode Terang":"Mode Gelap"} style={{
+        position:"fixed",top:18,right:18,zIndex:10,
+        display:"flex",alignItems:"center",justifyContent:"center",
+        width:38,height:38,borderRadius:9,cursor:"pointer",
+        background:"rgba(255,255,255,.15)",backdropFilter:"blur(8px)",
+        border:"1px solid rgba(255,255,255,.25)",color:"white",transition:"background .15s"}}>
+        {dark ? <IcoSun/> : <IcoMoon/>}
+      </button>
+
+      {/* grid overlay */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",opacity:.06,
+        backgroundImage:"linear-gradient(white 1px,transparent 1px),linear-gradient(90deg,white 1px,transparent 1px)",
+        backgroundSize:"36px 36px"}}/>
+
+      <div style={{
+        background:"var(--white)", borderRadius:20, padding:"44px 40px",
+        width:"100%", maxWidth:400,
+        boxShadow:"0 28px 64px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.08)",
+        animation:"loginIn .5s cubic-bezier(.22,1,.36,1) both",
+        position:"relative",
+      }}>
+        {/* logo */}
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:32}}>
+          <div style={{
+            width:48,height:48,borderRadius:14,flexShrink:0,
+            background:"linear-gradient(135deg,var(--g700),var(--g500))",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            boxShadow:"0 6px 18px rgba(16,185,129,.38)",
+          }}>
+            <IcoShield s={22}/>
+          </div>
+          <div>
+            <div style={{fontWeight:700,fontSize:20,color:"var(--gray900)",letterSpacing:"-.4px"}}>SOCA</div>
+            <div style={{fontSize:11,color:"var(--gray400)",fontFamily:"var(--mono)",letterSpacing:".6px",marginTop:1}}>
+              SECURITY OPERATIONS CENTER
+            </div>
+          </div>
+        </div>
+
+        <h2 style={{fontSize:17,fontWeight:600,color:"var(--gray900)",marginBottom:4}}>Masuk ke sistem</h2>
+        <p style={{fontSize:13,color:"var(--gray500)",marginBottom:28}}>
+          Masukkan kredensial SOC PUSDATIN untuk melanjutkan.
+        </p>
+
+        <form onSubmit={submit} style={{display:"flex",flexDirection:"column",gap:18}}>
+          {/* username */}
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:500,color:"var(--gray700)",marginBottom:7,letterSpacing:".3px"}}>
+              Username
+            </label>
+            <input value={user} onChange={e=>setUser(e.target.value)}
+              placeholder="Masukkan username" autoComplete="username" autoFocus
+              style={fieldStyle} onFocus={focusField} onBlur={blurField}/>
+          </div>
+
+          {/* password */}
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:500,color:"var(--gray700)",marginBottom:7,letterSpacing:".3px"}}>
+              Password
+            </label>
+            <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+              <input value={pass} onChange={e=>setPass(e.target.value)}
+                type={show?"text":"password"} placeholder="Masukkan password"
+                autoComplete="current-password"
+                style={{...fieldStyle, padding:"11px 44px 11px 14px"}}
+                onFocus={focusField} onBlur={blurField}/>
+              <button type="button" onClick={()=>setShow(s=>!s)} style={{
+                position:"absolute",right:12,background:"none",border:"none",
+                cursor:"pointer",color:"var(--gray400)",display:"flex",padding:2,
+              }}>
+                {show ? <IcoEyeOff/> : <IcoEye/>}
+              </button>
+            </div>
+          </div>
+
+          {/* error */}
+          {err && (
+            <div style={{background:"var(--red50)",border:"1px solid var(--red300)",
+              borderRadius:9,padding:"10px 14px",fontSize:13,color:"var(--red600)",
+              display:"flex",alignItems:"center",gap:8}}>
+              <Ico d="M18 6L6 18M6 6l12 12" s={14} c="var(--red600)"/>
+              {err}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} style={{
+            background:loading?"var(--gray100)":"linear-gradient(135deg,var(--g700),var(--g500))",
+            color:loading?"var(--gray400)":"var(--white)",
+            border:"none",borderRadius:11,padding:"13px",fontSize:15,fontWeight:600,
+            cursor:loading?"not-allowed":"pointer",transition:"all .2s",
+            boxShadow:loading?"none":"0 4px 16px rgba(16,185,129,.32)",
+            display:"flex",alignItems:"center",justifyContent:"center",gap:9,marginTop:2,
+          }}>
+            {loading ? (
+              <>
+                <div style={{width:16,height:16,border:"2px solid var(--gray300)",
+                  borderTopColor:"var(--gray500)",borderRadius:"50%",animation:"spin .7s linear infinite"}}/>
+                Memverifikasi...
+              </>
+            ) : "Masuk"}
+          </button>
+        </form>
+
+        <p style={{marginTop:24,fontSize:11,color:"var(--gray400)",textAlign:"center",lineHeight:1.6}}>
+          PUSDATIN Kementerian Pertanian &nbsp;·&nbsp; SOC Assistant
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   CHAT UI
+════════════════════════════════════════ */
+function Avatar({bot}){
+  return (
+    <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,
+      background:bot?"linear-gradient(135deg,var(--g700),var(--g500))":"var(--gray200)",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      boxShadow:bot?"0 2px 8px rgba(16,185,129,.28)":"none",
+      fontSize:12,fontWeight:600,color:bot?"var(--white)":"var(--gray500)"}}>
+      {bot ? <IcoShield s={14}/> : <span>U</span>}
+    </div>
+  );
+}
+
+function Bubble({msg}){
+  const isUser = msg.role==="user";
+  // Tombol salin hanya untuk balasan bot — analis SOC sering perlu menempelkan
+  // hasil analisis ke laporan insiden. Label berubah sesaat jadi "Tersalin"
+  // sebagai umpan balik, lalu kembali otomatis setelah 1,6 detik.
+  const [salin,setSalin] = useState(false);
+  const doSalin = ()=>{
+    navigator.clipboard?.writeText(msg.text).then(()=>{
+      setSalin(true);
+      setTimeout(()=>setSalin(false),1600);
+    }).catch(()=>{});
+  };
+  return (
+    <div style={{display:"flex",flexDirection:isUser?"row-reverse":"row",
+      alignItems:"flex-start",gap:9,animation:"fadeUp .28s ease both"}}>
+      {!isUser && <Avatar bot/>}
+      <div style={{maxWidth:"72%",display:"flex",flexDirection:"column",
+        alignItems:isUser?"flex-end":"flex-start",gap:3}}>
+        <div style={{
+          background:isUser?"linear-gradient(135deg,var(--g700),var(--g500))":"var(--white)",
+          color:isUser?"var(--white)":"var(--gray900)",
+          border:isUser?"none":"1.5px solid var(--gray200)",
+          borderRadius:isUser?"15px 15px 4px 15px":"15px 15px 15px 4px",
+          padding:"11px 15px",fontSize:14,lineHeight:1.65,
+          whiteSpace:"pre-wrap",wordBreak:"break-word",
+          boxShadow:isUser?"0 3px 10px rgba(16,185,129,.22)":"var(--rsm)"}}>
+          {msg.text}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:9}}>
+          <span style={{fontSize:10,color:"var(--gray400)",fontFamily:"var(--mono)"}}>{msg.ts}</span>
+          {!isUser && (
+            <button onClick={doSalin} title="Salin jawaban"
+              style={{display:"flex",alignItems:"center",gap:4,background:"none",border:"none",
+                padding:0,cursor:"pointer",fontFamily:"var(--sans)",fontSize:10,
+                color:salin?"var(--g500)":"var(--gray400)",transition:"color .13s"}}
+              onMouseEnter={e=>{if(!salin)e.currentTarget.style.color="var(--gray700)"}}
+              onMouseLeave={e=>{if(!salin)e.currentTarget.style.color="var(--gray400)"}}>
+              {salin ? <IcoCheck/> : <IcoCopy/>}
+              {salin ? "Tersalin" : "Salin"}
+            </button>
+          )}
+        </div>
+      </div>
+      {isUser && <Avatar/>}
+    </div>
+  );
+}
+
+function ThinkingBubble({text}){
+  return (
+    <div style={{display:"flex",alignItems:"flex-start",gap:9,animation:"fadeUp .2s ease both"}}>
+      <Avatar bot/>
+      <div style={{background:"var(--white)",border:"1.5px solid var(--gray200)",
+        borderRadius:"15px 15px 15px 4px",padding:"11px 15px",
+        fontSize:13,color:"var(--gray500)",fontStyle:"italic",
+        display:"flex",alignItems:"center",gap:10,boxShadow:"var(--rsm)"}}>
+        <span style={{display:"flex",gap:3}}>
+          {[0,1,2].map(i=>(
+            <span key={i} style={{display:"inline-block",width:5,height:5,borderRadius:"50%",
+              background:"var(--g400)",animation:`dotBounce 1.1s ${i*.18}s infinite`}}/>
+          ))}
+        </span>
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   HALAMAN PANDUAN — gaya dokumentasi
+   Tata letak dua kolom: daftar topik di kiri, isi topik terpilih di kanan.
+   Hanya satu topik dirender pada satu waktu (bukan satu halaman panjang),
+   supaya pembacaan lebih terarah — mirip situs dokumentasi teknis.
+   Dirender menggantikan area chat; topbar tetap tampil agar analis bisa
+   bolak-balik lewat tombol Panduan/Chat.
+════════════════════════════════════════ */
+function PanduanPage({onTryExample}){
+  const [topik,setTopik] = useState("mulai-cepat");
+
+  /* Style dipakai berulang, didefinisikan sekali agar konsisten & ringkas */
+  const P     = {fontSize:13.5,lineHeight:1.8,color:"var(--gray700)"};
+  const MUTED = {fontSize:13,lineHeight:1.75,color:"var(--gray500)"};
+  const CARD  = {background:"var(--white)",border:"1.5px solid var(--gray200)",
+                 borderRadius:12,padding:"16px 18px"};
+  const BADGE = {width:26,height:26,borderRadius:8,flexShrink:0,fontSize:12,fontWeight:600,
+                 background:"var(--g50)",color:"var(--g700)",border:"1px solid var(--g100)",
+                 display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--mono)"};
+  const H3    = {fontSize:14,fontWeight:600,color:"var(--gray900)",marginBottom:8,marginTop:22};
+
+  /* ── Data isi panduan ────────────────────────────────────────────────── */
+
+  /* Alur kerja sistem: 6 tahap yang dilalui setiap pertanyaan */
+  const ALUR = [
+    ["Pertanyaan analis",   "Anda menulis pertanyaan dalam Bahasa Indonesia biasa, tanpa perlu sintaks query khusus."],
+    ["Pemeriksaan keamanan","Input diperiksa dua lapis (pola lokal + penilai berbasis AI) untuk menolak upaya prompt injection sebelum diproses lebih jauh."],
+    ["Klasifikasi maksud",  "Sistem menentukan jenis pertanyaan: analisis log, pertanyaan pengetahuan (MITRE/NIST), atau percakapan umum. Ini menentukan sumber data yang diambil."],
+    ["Pencarian konteks",   "Sistem mencari data paling relevan (log keamanan, teknik MITRE ATT&CK, dan subkategori NIST CSF) di basis data vektor berdasarkan kemiripan makna, bukan sekadar kecocokan kata."],
+    ["Penyusunan jawaban",  "Konteks yang ditemukan digabung dengan pertanyaan Anda, lalu dianalisis model bahasa untuk menghasilkan jawaban beserta rekomendasinya."],
+    ["Verifikasi keluaran", "Jawaban dibersihkan dan divalidasi sebelum ditampilkan, agar rapi dan sesuai kaidah penulisan sistem."],
+  ];
+
+  /* Sumber data yang diindeks sistem */
+  const SUMBER = [
+    [<IcoDb/>,            "Log Keamanan", "Event keamanan yang dikumpulkan Wazuh dari perangkat yang dipantau. Log ditarik dari server Wazuh melalui perintah /reload atau /sync, lalu diindeks agar siap dianalisis."],
+    [<IcoShield s={15}/>, "MITRE ATT&CK", "Katalog teknik dan taktik penyerang, dipakai untuk memetakan aktivitas mencurigakan ke teknik yang dikenal."],
+    [<IcoLock/>,          "NIST CSF 2.0", "Kerangka kerja keamanan siber, dipakai sebagai dasar rekomendasi kontrol dan langkah mitigasi."],
+  ];
+
+  /* Contoh pertanyaan, bisa diklik untuk langsung dicoba di chat */
+  const CONTOH = [
+    ["Analisis Log", [
+      "Berapa total event keamanan yang tercatat dan dalam rentang waktu berapa?",
+      "Apakah terdapat aktivitas mencurigakan pada log yang ada?",
+      "IP mana yang paling sering muncul dalam log?",
+      "Apakah ada indikasi eksfiltrasi data dalam log?",
+    ]],
+    ["MITRE ATT&CK", [
+      "Apa itu teknik T1071.004?",
+      "Teknik MITRE apa yang berkaitan dengan penyalahgunaan protokol DNS?",
+    ]],
+    ["NIST CSF 2.0", [
+      "Apa isi subkategori DE.CM-01?",
+      "Sebutkan kelima fungsi utama dalam NIST CSF 2.0.",
+    ]],
+    ["Mitigasi", [
+      "Bagaimana cara mencegah serangan brute force?",
+      "Apa rekomendasi mitigasi untuk aktivitas command-and-control?",
+    ]],
+  ];
+
+  /* Perintah yang tersedia (selaras dengan Quick Commands di sidebar chat) */
+  const PERINTAH = [
+    ["/help",       "Menampilkan daftar perintah di dalam chat."],
+    ["/stat",       "Menampilkan status sistem: jumlah data terindeks, rentang waktu log, dan status sinkronisasi."],
+    ["/reload",     "Mengambil log terbaru dari server Wazuh lalu menambahkannya ke basis data."],
+    ["/sync",       "Menarik log baru sejak sinkronisasi terakhir (lebih cepat dari /reload)."],
+    ["/set days N", "Mengubah rentang waktu pengambilan log menjadi N hari (1-365)."],
+    ["/clear_chat", "Menghapus riwayat percakapan pada sesi ini."],
+    ["/clear_logs", "Menghapus seluruh log dari basis data. Gunakan dengan hati-hati."],
+  ];
+
+  const TIPS = [
+    "Sebutkan konteksnya sespesifik mungkin, misalnya protokol, rentang waktu, atau jenis serangan yang dicurigai.",
+    "Anda dapat mengajukan pertanyaan lanjutan seperti “jelaskan lebih detail” atau “buatkan dalam poin-poin”; sistem akan meneruskan konteks pembahasan sebelumnya.",
+    "Sebutkan bentuk jawaban yang Anda inginkan bila perlu, misalnya “ringkas saja” atau “tampilkan per poin”.",
+    "Gunakan /stat untuk memastikan rentang waktu log yang sedang terindeks sebelum menarik kesimpulan.",
+  ];
+
+  /* ── Daftar topik untuk navigasi kiri ─────────────────────────────────── */
+  const TOPIK = [
+    {id:"mulai-cepat",label:"Mulai Cepat",        ikon:<IcoRocket/>,        sub:"Tiga langkah menuju jawaban pertama Anda"},
+    {id:"tentang",    label:"Tentang SOCA",       ikon:<IcoShield s={15}/>, sub:"Pengenalan sistem dan cara kerjanya secara umum"},
+    {id:"cara-kerja", label:"Cara Kerja Sistem",  ikon:<IcoRefresh/>,       sub:"Enam tahap yang dilalui setiap pertanyaan"},
+    {id:"sumber",     label:"Sumber Data",        ikon:<IcoDb/>,            sub:"Basis data yang menjadi rujukan jawaban"},
+    {id:"penggunaan", label:"Cara Penggunaan",    ikon:<IcoChat/>,          sub:"Langkah memakai sistem dari awal"},
+    {id:"contoh",     label:"Contoh Pertanyaan",  ikon:<IcoZap/>,           sub:"Contoh siap pakai, bisa langsung dicoba"},
+    {id:"perintah",   label:"Daftar Perintah",    ikon:<IcoTerm/>,          sub:"Perintah khusus yang diawali garis miring"},
+    {id:"tips",       label:"Tips Bertanya",      ikon:<IcoInfo/>,          sub:"Cara memperoleh jawaban yang lebih tepat"},
+    {id:"faq",        label:"FAQ & Pemecahan Masalah", ikon:<IcoHelp/>,     sub:"Pertanyaan yang sering muncul beserta solusinya"},
+    {id:"glosarium",  label:"Glosarium Istilah",  ikon:<IcoList/>,          sub:"Arti istilah teknis yang dipakai sistem"},
+    {id:"keamanan",   label:"Keamanan & Batasan", ikon:<IcoLock/>,          sub:"Perlindungan sistem dan hal yang perlu disadari"},
+  ];
+
+  const idxAktif = TOPIK.findIndex(t=>t.id===topik);
+  const aktif    = TOPIK[idxAktif] || TOPIK[0];
+
+  /* Tahapan untuk diagram alur visual, dipakai di topik "Cara Kerja Sistem".
+     Sengaja diringkas jadi label pendek agar diagram tetap terbaca saat
+     di-screenshot untuk laporan. */
+    /* (label pendek supaya diagram tetap terbaca) */
+  const DIAGRAM = [
+    ["Pertanyaan Analis",  "Input bahasa alami",        "netral"],
+    ["Guardrails",         "Pemeriksaan input",         "jaga"],
+    ["Klasifikasi Maksud", "Tentukan jenis pertanyaan", "proses"],
+    ["Retrieval (Qdrant)", "Log + MITRE + NIST",        "proses"],
+    ["Model Bahasa (LLM)", "Susun analisis & saran",    "proses"],
+    ["Guardrails",         "Validasi keluaran",         "jaga"],
+    ["Jawaban ke Analis",  "Ditampilkan ke analis",     "netral"],
+  ];
+
+  /* FAQ: disusun dari kendala yang paling mungkin dialami pengguna baru */
+  const FAQ = [
+    ["Kenapa sistem menjawab tidak ada log yang cocok?",
+     "Kemungkinan besar peristiwa yang Anda cari berada di luar rentang waktu log yang sedang terindeks. Periksa rentangnya dengan /stat, lalu perluas memakai /set days N diikuti /reload bila diperlukan."],
+    ["Kenapa jawaban terasa lama?",
+     "Setiap pertanyaan melewati pemeriksaan keamanan, pencarian konteks, dan penyusunan jawaban oleh model bahasa. Indikator titik berjalan menandakan proses sedang berlangsung, jadi tunggu hingga selesai dan jangan mengirim ulang pertanyaan."],
+    ["Kenapa pertanyaan saya ditolak?",
+     "Ada dua sebab. Pertama, pertanyaan kurang dari tiga karakter. Kedua, input terdeteksi mengandung pola prompt injection, misalnya meminta sistem mengabaikan instruksinya. Tulis ulang pertanyaan secara wajar."],
+    ["Kenapa jawabannya kurang spesifik?",
+     "Pertanyaan yang terlalu umum menghasilkan jawaban umum. Sebutkan konteksnya: protokol, rentang waktu, alamat IP, atau jenis serangan yang dicurigai. Anda juga bisa menyusulkan “jelaskan lebih detail”."],
+    ["Apakah jawaban sistem selalu benar?",
+     "Tidak dijamin selalu benar. Sistem menyusun analisis dari log dan referensi yang tersedia, sehingga tetap mungkin keliru menafsirkan. Perlakukan hasilnya sebagai alat bantu, dan verifikasi temuan penting langsung pada sumber log."],
+    ["Apakah percakapan saya tersimpan?",
+     "Riwayat hanya bertahan selama sesi berlangsung dan dapat dihapus kapan saja dengan /clear_chat. Menutup atau memuat ulang halaman juga mengosongkan riwayat."],
+  ];
+
+  /* Glosarium: istilah yang muncul di UI maupun jawaban sistem */
+  const GLOSARIUM = [
+    ["LLM (Large Language Model)", "Model bahasa berukuran besar yang mampu memahami pertanyaan dan menyusun jawaban dalam bahasa manusia."],
+    ["RAG (Retrieval-Augmented Generation)", "Teknik yang mewajibkan model menjawab berdasarkan dokumen yang diambil dari basis data, bukan dari ingatannya sendiri. Tujuannya menekan risiko jawaban mengada-ada."],
+    ["Embedding", "Perubahan teks menjadi deretan angka (vektor) yang mewakili maknanya, sehingga kemiripan antar teks dapat dihitung secara matematis."],
+    ["Vector Database", "Basis data khusus penyimpan vektor. Sistem ini memakai Qdrant untuk mencari log dan referensi yang paling mirip maknanya dengan pertanyaan Anda."],
+    ["MITRE ATT&CK", "Katalog perilaku penyerang berbasis kejadian nyata, tersusun atas taktik (tujuan penyerang) dan teknik (cara mencapainya)."],
+    ["Taktik vs Teknik", "Taktik menjawab “apa tujuannya”, misalnya credential-access. Teknik menjawab “bagaimana caranya”, misalnya Brute Force (T1110)."],
+    ["NIST CSF 2.0", "Kerangka kerja keamanan siber dengan enam fungsi utama: GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, dan RECOVER."],
+    ["Prompt Injection", "Upaya menyisipkan perintah pada input agar sistem mengabaikan instruksi aslinya, membocorkan konfigurasi, atau berperilaku di luar wewenangnya."],
+    ["Guardrails", "Lapisan pengaman yang memeriksa input sebelum diproses dan keluaran sebelum ditampilkan."],
+    ["Wazuh", "Platform pemantauan keamanan yang mengumpulkan serta menganalisis log dari berbagai perangkat."],
+    ["SIEM", "Security Information and Event Management, yaitu sistem yang menghimpun log dari banyak sumber untuk dianalisis secara terpusat."],
+    ["Rule Level", "Tingkat keparahan suatu event menurut Wazuh. Semakin tinggi angkanya, semakin serius kejadiannya."],
+  ];
+
+  /* ── Isi tiap topik ───────────────────────────────────────────────────── */
+  const KONTEN = {
+
+    "mulai-cepat": (
+      <div>
+        <div style={{...CARD,background:"var(--g50)",borderColor:"var(--g100)",marginBottom:20}}>
+          <p style={{...P,color:"var(--g700)"}}>
+            Baru pertama kali memakai SOCA? Ikuti tiga langkah berikut, dan Anda akan
+            memperoleh jawaban pertama dalam waktu kurang dari satu menit.
+          </p>
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          {[
+            ["Buka halaman Chat","Klik tombol Chat di pojok kanan atas untuk keluar dari panduan ini."],
+            ["Ajukan satu pertanyaan","Ketik pada kolom di bagian bawah, lalu tekan Enter. Tidak perlu sintaks khusus, cukup bahasa sehari-hari."],
+            ["Baca dan tindak lanjuti","Setelah jawaban muncul, Anda dapat langsung menyusulkan “jelaskan lebih detail” atau “buatkan dalam poin-poin”."],
+          ].map(([judul,isi],i)=>(
+            <div key={i} style={{...CARD,display:"flex",gap:13,alignItems:"flex-start"}}>
+              <span style={BADGE}>{i+1}</span>
+              <div>
+                <div style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)",marginBottom:3}}>{judul}</div>
+                <div style={MUTED}>{isi}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <h3 style={H3}>Coba sekarang</h3>
+        <p style={{...MUTED,marginBottom:11}}>
+          Klik pertanyaan di bawah ini untuk mencobanya langsung:
+        </p>
+        <button onClick={()=>onTryExample("Apakah terdapat aktivitas mencurigakan pada log yang ada?")}
+          style={{...CARD,width:"100%",padding:"13px 15px",textAlign:"left",cursor:"pointer",
+            fontSize:13.5,color:"var(--g700)",fontFamily:"var(--sans)",fontWeight:500,
+            background:"var(--g50)",borderColor:"var(--g100)",
+            transition:"all .13s",display:"flex",alignItems:"center",gap:10}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--g400)"}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--g100)"}}>
+          <span style={{color:"var(--g500)",flexShrink:0,display:"flex"}}><IcoSend/></span>
+          Apakah terdapat aktivitas mencurigakan pada log yang ada?
+        </button>
+
+        <p style={{...MUTED,marginTop:20}}>
+          Bila ingin memahami lebih dalam cara sistem bekerja, lanjutkan ke topik
+          berikutnya melalui tombol di bawah halaman ini.
+        </p>
+      </div>
+    ),
+
+    tentang: (
+      <div>
+        <div style={CARD}>
+          <p style={P}>
+            SOCA adalah chatbot yang membantu analis SOC memahami log keamanan tanpa
+            harus menyusun query teknis secara manual. Anda cukup bertanya dalam bahasa
+            sehari-hari, lalu sistem mencari data yang relevan dan menyusun analisisnya.
+          </p>
+        </div>
+
+        <h3 style={H3}>Dua pendekatan yang digabungkan</h3>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:11}}>
+          <div style={CARD}>
+            <div style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)",marginBottom:6}}>Model Bahasa (LLM)</div>
+            <p style={MUTED}>Bertugas menalar, menghubungkan fakta, dan menyusun penjelasan yang mudah dibaca.</p>
+          </div>
+          <div style={CARD}>
+            <div style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)",marginBottom:6}}>Retrieval-Augmented Generation</div>
+            <p style={MUTED}>Memastikan jawaban ditarik dari data nyata yang terindeks, bukan dari ingatan model.</p>
+          </div>
+        </div>
+
+        <p style={{...P,marginTop:18}}>
+          Kombinasi keduanya membuat jawaban tetap merujuk pada log dan referensi yang
+          benar-benar ada, sehingga risiko informasi mengada-ada dapat ditekan.
+        </p>
+
+        <div style={{...CARD,marginTop:18,background:"var(--g50)",borderColor:"var(--g100)"}}>
+          <p style={{...MUTED,color:"var(--g700)"}}>
+            <strong>Untuk siapa:</strong> tim Security Operations Center, Pusat Data dan
+            Sistem Informasi, Kementerian Pertanian.
+          </p>
+        </div>
+      </div>
+    ),
+
+    "cara-kerja": (
+      <div>
+        {/* Diagram alur: kotak bertumpuk dengan panah penghubung. Dibuat murni
+            dengan CSS (tanpa library) agar tetap tajam saat di-screenshot. */}
+        <div style={{...CARD,padding:"24px 20px",marginBottom:24}}>
+          <p style={{fontSize:11,fontWeight:600,color:"var(--gray400)",letterSpacing:"1px",
+            textTransform:"uppercase",textAlign:"center",marginBottom:18}}>Alur Pemrosesan</p>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:0}}>
+            {DIAGRAM.map(([label,ket,jenis],i)=>{
+              const warna = jenis==="jaga"   ? {bg:"#f59e0b18",bd:"#f59e0b66",tx:"#b45309"}
+                          : jenis==="proses" ? {bg:"var(--g50)",bd:"var(--g400)",tx:"var(--g700)"}
+                          :                    {bg:"var(--gray100)",bd:"var(--gray300)",tx:"var(--gray700)"};
+              return (
+                <React.Fragment key={i}>
+                  <div style={{width:"100%",maxWidth:320,background:warna.bg,
+                    border:`1.5px solid ${warna.bd}`,borderRadius:10,padding:"11px 15px",
+                    textAlign:"center"}}>
+                    <div style={{fontSize:13,fontWeight:600,color:warna.tx}}>{label}</div>
+                    <div style={{fontSize:11,color:"var(--gray500)",marginTop:2}}>{ket}</div>
+                  </div>
+                  {i<DIAGRAM.length-1 && (
+                    <span style={{color:"var(--gray300)",display:"flex",margin:"5px 0"}}><IcoDown/></span>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:20,flexWrap:"wrap"}}>
+            {[["#f59e0b66","Pengamanan"],["var(--g400)","Pemrosesan inti"],["var(--gray300)","Masukan / keluaran"]].map(([c,l],i)=>(
+              <span key={i} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"var(--gray500)"}}>
+                <span style={{width:9,height:9,borderRadius:3,background:c,flexShrink:0}}/>{l}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p style={{...MUTED,marginBottom:16}}>
+          Penjelasan tiap tahap secara berurutan:
+        </p>
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          {ALUR.map(([judul,isi],i)=>(
+            <div key={i} style={{...CARD,display:"flex",gap:13,alignItems:"flex-start"}}>
+              <span style={BADGE}>{i+1}</span>
+              <div>
+                <div style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)",marginBottom:3}}>{judul}</div>
+                <div style={MUTED}>{isi}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    sumber: (
+      <div>
+        <p style={{...MUTED,marginBottom:16}}>
+          Jawaban SOCA hanya bersumber dari tiga basis data berikut. Di luar itu, sistem
+          akan menyatakan bahwa informasinya tidak tersedia.
+        </p>
+        <div style={{display:"flex",flexDirection:"column",gap:11}}>
+          {SUMBER.map(([ico,judul,isi],i)=>(
+            <div key={i} style={CARD}>
+              <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
+                <span style={{color:"var(--g500)",display:"flex"}}>{ico}</span>
+                <span style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)"}}>{judul}</span>
+              </div>
+              <p style={MUTED}>{isi}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    penggunaan: (
+      <div>
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          {[
+            ["Buka halaman Chat","Gunakan tombol Chat di kanan atas untuk kembali dari panduan ini."],
+            ["Tulis pertanyaan","Ketik pada kolom di bagian bawah layar, lalu tekan Enter untuk mengirim."],
+            ["Tunggu proses","Indikator titik berjalan menandakan sistem sedang memeriksa input, mencari konteks, dan menyusun jawaban."],
+            ["Ajukan pertanyaan lanjutan","Sistem mengingat konteks pembahasan sebelumnya dalam satu sesi, jadi Anda bisa langsung meminta penjelasan tambahan."],
+            ["Manfaatkan Quick Commands","Panel kiri pada halaman chat memuat perintah yang sering dipakai."],
+          ].map(([judul,isi],i)=>(
+            <div key={i} style={{...CARD,display:"flex",gap:13,alignItems:"flex-start"}}>
+              <span style={BADGE}>{i+1}</span>
+              <div>
+                <div style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)",marginBottom:3}}>{judul}</div>
+                <div style={MUTED}>{isi}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    contoh: (
+      <div>
+        <p style={{...MUTED,marginBottom:16}}>
+          Klik salah satu contoh di bawah untuk langsung mencobanya di halaman chat.
+        </p>
+        <div style={{display:"flex",flexDirection:"column",gap:17}}>
+          {CONTOH.map(([kategori,daftar],i)=>(
+            <div key={i}>
+              <p style={{fontSize:11,fontWeight:600,color:"var(--gray400)",letterSpacing:".8px",
+                textTransform:"uppercase",marginBottom:8}}>{kategori}</p>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {daftar.map((q,j)=>(
+                  <button key={j} onClick={()=>onTryExample(q)}
+                    style={{...CARD,padding:"11px 14px",textAlign:"left",cursor:"pointer",
+                      fontSize:13,color:"var(--gray700)",fontFamily:"var(--sans)",
+                      transition:"all .13s",display:"flex",alignItems:"center",gap:10}}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--g400)";
+                      e.currentTarget.style.background="var(--g50)";e.currentTarget.style.color="var(--g700)"}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--gray200)";
+                      e.currentTarget.style.background="var(--white)";e.currentTarget.style.color="var(--gray700)"}}>
+                    <span style={{color:"var(--g500)",flexShrink:0,display:"flex"}}><IcoSend/></span>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    perintah: (
+      <div>
+        <p style={{...MUTED,marginBottom:16}}>
+          Selain bertanya bebas, tersedia perintah khusus yang diawali garis miring.
+          Ketik langsung pada kolom chat.
+        </p>
+        <div style={{...CARD,padding:0,overflow:"hidden"}}>
+          {PERINTAH.map(([cmd,ket],i)=>(
+            <div key={i} style={{display:"flex",gap:14,padding:"13px 17px",alignItems:"flex-start",
+              borderTop:i===0?"none":"1px solid var(--gray100)"}}>
+              <code style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--g700)",
+                background:"var(--g50)",border:"1px solid var(--g100)",borderRadius:6,
+                padding:"3px 8px",flexShrink:0,minWidth:104,textAlign:"center"}}>{cmd}</code>
+              <span style={{...MUTED,paddingTop:2}}>{ket}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    tips: (
+      <div>
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          {TIPS.map((t,i)=>(
+            <div key={i} style={{...CARD,display:"flex",gap:13,alignItems:"flex-start"}}>
+              <span style={BADGE}>{i+1}</span>
+              <p style={{...P,paddingTop:2}}>{t}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    faq: (
+      <div>
+        <p style={{...MUTED,marginBottom:16}}>
+          Kendala yang paling sering dijumpai pengguna beserta cara menanganinya:
+        </p>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {FAQ.map(([tanya,jawab],i)=>(
+            <div key={i} style={CARD}>
+              <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:8}}>
+                <span style={{color:"var(--g500)",flexShrink:0,marginTop:1,display:"flex"}}><IcoHelp/></span>
+                <div style={{fontSize:13.5,fontWeight:600,color:"var(--gray900)",lineHeight:1.5}}>{tanya}</div>
+              </div>
+              <p style={{...MUTED,paddingLeft:25}}>{jawab}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    glosarium: (
+      <div>
+        <p style={{...MUTED,marginBottom:16}}>
+          Istilah teknis yang muncul di antarmuka maupun pada jawaban sistem:
+        </p>
+        <div style={{...CARD,padding:0,overflow:"hidden"}}>
+          {GLOSARIUM.map(([istilah,arti],i)=>(
+            <div key={i} style={{padding:"13px 17px",
+              borderTop:i===0?"none":"1px solid var(--gray100)"}}>
+              <div style={{fontSize:13,fontWeight:600,color:"var(--g700)",marginBottom:4}}>{istilah}</div>
+              <p style={MUTED}>{arti}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    keamanan: (
+      <div>
+        <h3 style={{...H3,marginTop:0}}>Perlindungan Prompt Injection</h3>
+        <div style={CARD}>
+          <p style={MUTED}>
+            Setiap input diperiksa dua lapis sebelum diproses. Upaya memanipulasi sistem,
+            misalnya menyuruh mengabaikan instruksi atau membocorkan konfigurasi internal,
+            akan ditolak dan tidak diteruskan ke tahap analisis.
+          </p>
+        </div>
+
+        <h3 style={H3}>Batasan yang Perlu Diperhatikan</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          {[
+            "Jawaban hanya mencakup log yang sudah terindeks. Peristiwa di luar rentang waktu tersebut tidak akan terbaca, jadi periksa dengan perintah /stat.",
+            "Sistem menampilkan sejumlah log paling relevan per pertanyaan, bukan seluruh isi basis data sekaligus.",
+            "Hasil analisis merupakan alat bantu pengambilan keputusan, bukan pengganti verifikasi analis. Temuan penting sebaiknya dikonfirmasi langsung pada sumber log.",
+          ].map((t,i)=>(
+            <div key={i} style={{...CARD,display:"flex",gap:12,alignItems:"flex-start"}}>
+              <span style={{color:"var(--g500)",flexShrink:0,marginTop:3,display:"flex"}}><IcoInfo/></span>
+              <p style={MUTED}>{t}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  };
+
+  return (
+    <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+
+      {/* ── Navigasi topik (kiri) ── */}
+      <aside style={{width:236,flexShrink:0,background:"var(--white)",
+        borderRight:"1.5px solid var(--gray100)",overflowY:"auto",padding:"18px 10px",
+        display:"flex",flexDirection:"column"}}>
+        <p style={{fontSize:10,fontWeight:600,color:"var(--gray400)",letterSpacing:"1px",
+          textTransform:"uppercase",marginBottom:9,paddingLeft:8}}>Daftar Isi</p>
+        {TOPIK.map(t=>{
+          const on = t.id===topik;
+          return (
+            <button key={t.id} onClick={()=>setTopik(t.id)}
+              style={{width:"100%",textAlign:"left",cursor:"pointer",borderRadius:8,
+                padding:"9px 10px",marginBottom:2,display:"flex",alignItems:"center",gap:9,
+                fontFamily:"var(--sans)",transition:"all .13s",
+                border:"none",
+                borderLeft:`2.5px solid ${on?"var(--g500)":"transparent"}`,
+                background:on?"var(--g50)":"none",
+                color:on?"var(--g700)":"var(--gray500)"}}
+              onMouseEnter={e=>{if(!on){e.currentTarget.style.background="var(--gray100)";
+                e.currentTarget.style.color="var(--gray700)"}}}
+              onMouseLeave={e=>{if(!on){e.currentTarget.style.background="none";
+                e.currentTarget.style.color="var(--gray500)"}}}>
+              <span style={{color:on?"var(--g500)":"var(--gray400)",flexShrink:0,display:"flex"}}>{t.ikon}</span>
+              <span style={{fontSize:12.5,fontWeight:on?600:500}}>{t.label}</span>
+            </button>
+          );
+        })}
+
+        {/* Identitas dokumen, konvensi umum situs dokumentasi */}
+        <div style={{marginTop:"auto",paddingTop:14,paddingLeft:10,paddingRight:10,
+          borderTop:"1px solid var(--gray100)"}}>
+          <p style={{fontSize:10.5,color:"var(--gray400)",lineHeight:1.7}}>
+            <strong style={{color:"var(--gray500)"}}>SOCA</strong> v1.0<br/>
+            Panduan Penggunaan SOCA
+          </p>
+        </div>
+      </aside>
+
+      {/* ── Isi topik (kanan) ── */}
+      <div style={{flex:1,overflowY:"auto",background:"var(--gray50)"}}>
+        <div key={topik} style={{maxWidth:780,padding:"32px 42px 60px",animation:"fadeUp .3s ease"}}>
+
+          {/* Breadcrumb */}
+          <p style={{fontSize:11,color:"var(--gray400)",fontFamily:"var(--mono)",marginBottom:9}}>
+            Panduan <span style={{margin:"0 6px"}}>/</span>
+            <span style={{color:"var(--g700)"}}>{aktif.label}</span>
+          </p>
+
+          {/* Judul topik */}
+          <h1 style={{fontSize:25,fontWeight:700,color:"var(--gray900)",
+            letterSpacing:"-.5px",marginBottom:7}}>{aktif.label}</h1>
+          <p style={{fontSize:13.5,color:"var(--gray500)",lineHeight:1.7,
+            paddingBottom:20,marginBottom:24,borderBottom:"1.5px solid var(--gray200)"}}>{aktif.sub}</p>
+
+          {/* Isi */}
+          {KONTEN[topik]}
+
+          {/* Navigasi sebelumnya / berikutnya */}
+          <div style={{display:"flex",gap:10,marginTop:34,paddingTop:20,
+            borderTop:"1.5px solid var(--gray200)"}}>
+            {idxAktif>0 && (
+              <button onClick={()=>setTopik(TOPIK[idxAktif-1].id)}
+                style={{...CARD,flex:1,cursor:"pointer",textAlign:"left",
+                  fontFamily:"var(--sans)",transition:"all .13s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--g400)"}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--gray200)"}}>
+                <div style={{fontSize:10.5,color:"var(--gray400)",marginBottom:3,
+                  textTransform:"uppercase",letterSpacing:".7px"}}>Sebelumnya</div>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--g700)"}}>{TOPIK[idxAktif-1].label}</div>
+              </button>
+            )}
+            {idxAktif<TOPIK.length-1 && (
+              <button onClick={()=>setTopik(TOPIK[idxAktif+1].id)}
+                style={{...CARD,flex:1,cursor:"pointer",textAlign:"right",
+                  fontFamily:"var(--sans)",transition:"all .13s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--g400)"}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--gray200)"}}>
+                <div style={{fontSize:10.5,color:"var(--gray400)",marginBottom:3,
+                  textTransform:"uppercase",letterSpacing:".7px"}}>Berikutnya</div>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--g700)"}}>{TOPIK[idxAktif+1].label}</div>
+              </button>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatApp({auth,onLogout,dark,toggleDark}){
+  const [msgs,   setMsgs]  = useState([{role:"bot",
+    text:"Selamat datang di SOCA!\nSaya siap membantu analisis log keamanan Wazuh.\nTanyakan apa saja atau gunakan quick command di samping.",
+    ts:now()}]);
+  const [input,  setInput] = useState("");
+  const [status, setStat]  = useState("connecting");
+  const [logCnt, setLogs]  = useState(0);
+  const [thinking,setThink]= useState(null);
+  // "chat" | "panduan" — koneksi WebSocket & riwayat chat TIDAK direset saat
+  // berpindah halaman, karena keduanya dirender di dalam komponen yang sama.
+  const [page,   setPage]  = useState("chat");
+  const wsRef  = useRef(null);
+  const bottom = useRef(null);
+  const inputEl= useRef(null);
+
+  useEffect(()=>{
+    const proto = location.protocol==="https:"?"wss":"ws";
+    const url   = `${proto}://${location.host}/ws/chat`;
+    const ws    = new WebSocket(url);
+    wsRef.current = ws;
+    ws.onopen  = ()=>{
+      ws.send(JSON.stringify({type:"auth",u:auth.user,p:auth.pass}));
+      setStat("open");
+      fetchMeta();
+    };
+    ws.onclose = ()=>setStat("closed");
+    ws.onerror = ()=>setStat("error");
+    ws.onmessage = e=>{
+      const d  = JSON.parse(e.data);
+      const m  = d.message||"";
+      // Semua pesan status/loading → tampilkan sebagai ThinkingBubble (animasi dots)
+      // bukan sebagai chat bubble biasa
+      const THINKING_KEYS = [
+        "Mencari konteks",
+        "Menyusun jawaban",
+        "Memuat ulang",
+        "Mengambil log",
+        "Trigger sync",
+        "Menghapus semua log",
+        "Mengklasifikasi",
+        "Memproses",
+        "Menganalisis seluruh log",
+        "Menyusun laporan analisis",
+      ];
+      const th = THINKING_KEYS.some(k=>m.includes(k));
+      if(th){ setThink(m); }
+      else  {
+        setThink(null);
+        setMsgs(p=>[...p,{role:"bot",text:m,ts:now()}]);
+        // Auto-refresh log count setelah operasi data selesai
+        if(["selesai","berhasil dihapus","Total di Qdrant","log baru"].some(k=>m.includes(k))){
+          fetchMeta();
+        }
+      }
+    };
+    return ()=>ws.close();
+  },[auth]);
+
+  const fetchMeta = async()=>{
+    try{
+      const r = await fetch("/health",{headers:{"Authorization":"Basic "+btoa(`${auth.user}:${auth.pass}`)}});
+      if(r.ok){ const d=await r.json(); setLogs(d.logs_indexed||0); }
+    }catch{}
+  };
+
+  useEffect(()=>{ bottom.current?.scrollIntoView({behavior:"smooth"}); },[msgs,thinking]);
+
+  const send = useCallback((txt)=>{
+    const t=(txt||input).trim();
+    if(!t||status!=="open") return;
+    if(t==="/clear"||t==="/clear_chat"){ setMsgs([{role:"bot",text:"Riwayat chat dibersihkan.",ts:now()}]); setInput(""); return; }
+    setMsgs(p=>[...p,{role:"user",text:t,ts:now()}]);
+    wsRef.current.send(t);
+    setInput(""); inputEl.current?.focus();
+  },[input,status]);
+
+  const CMDS=[
+    {label:"/help",        icon:<IcoInfo/>,    desc:"Panduan"},
+    {label:"/stat",        icon:<IcoZap/>,     desc:"Status & auto-sync"},
+    {label:"/set days 7",  icon:<IcoTerm/>,    desc:"Log 7 hari"},
+    {label:"/reload",      icon:<IcoRefresh/>, desc:"Muat log N hari"},
+    {label:"/sync",        icon:<IcoSync/>,    desc:"Sync log baru sekarang"},
+    {label:"/clear_chat",  icon:<IcoClear/>,   desc:"Bersihkan chat"},
+    {label:"/clear_logs",  icon:<IcoTrash/>,   desc:"Hapus semua log"},
+    {label:"/full_analyze",icon:<IcoShield s={13}/>, desc:"Laporan lengkap semua log"},
+  ];
+
+  const DOT={
+    connecting:{c:"#f59e0b", l:"Menghubungkan"},
+    open:      {c:"var(--g500)",l:"Terhubung"},
+    closed:    {c:"var(--gray400)",l:"Terputus"},
+    error:     {c:"#ef4444",l:"Error"},
+  };
+  const dot = DOT[status]||DOT.error;
+  const canSend = status==="open"&&input.trim();
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"var(--gray50)"}}>
+
+      {/* TOPBAR */}
+      <header style={{background:"var(--white)",borderBottom:"1.5px solid var(--gray100)",
+        padding:"0 22px",height:58,display:"flex",alignItems:"center",gap:14,flexShrink:0,
+        boxShadow:"var(--rsm)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:34,height:34,borderRadius:9,flexShrink:0,
+            background:"linear-gradient(135deg,var(--g700),var(--g500))",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            boxShadow:"0 2px 8px rgba(16,185,129,.28)"}}>
+            <IcoShield s={17}/>
+          </div>
+          <div>
+            <span style={{fontWeight:700,fontSize:15,color:"var(--gray900)",letterSpacing:"-.3px"}}>SOCA</span>
+            <span style={{fontSize:11,color:"var(--gray400)",fontFamily:"var(--mono)",marginLeft:8}}>SOC ASSISTANT</span>
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:5,marginLeft:4}}>
+          {["NIST CSF 2.0","MITRE ATT&CK","Wazuh"].map(t=>(
+            <span key={t} style={{background:"var(--g50)",color:"var(--g700)",
+              border:"1px solid var(--g100)",borderRadius:99,padding:"2px 9px",fontSize:11,fontWeight:500}}>{t}</span>
+          ))}
+        </div>
+
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:16}}>
+          <span style={{fontSize:12,color:"var(--gray500)",fontFamily:"var(--mono)",display:"flex",alignItems:"center",gap:5}}>
+            <IcoZap/>{auth.model}
+          </span>
+          <span style={{fontSize:12,color:"var(--gray500)",display:"flex",alignItems:"center",gap:5}}>
+            <IcoTerm/>{logCnt.toLocaleString()} log
+          </span>
+          <span style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:dot.c,flexShrink:0,
+              boxShadow:status==="open"?`0 0 0 3px ${dot.c}33`:"none",
+              animation:status==="connecting"?"pulse 1.2s infinite":"none"}}/>
+            <span style={{fontSize:12,color:dot.c,fontWeight:500}}>{dot.l}</span>
+          </span>
+          <button onClick={toggleDark} title={dark?"Mode Terang":"Mode Gelap"} style={{
+            display:"flex",alignItems:"center",justifyContent:"center",
+            width:34,height:34,background:"none",
+            border:"1.5px solid var(--gray200)",borderRadius:8,
+            color:"var(--gray500)",cursor:"pointer",transition:"all .15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="var(--gray100)";e.currentTarget.style.color="var(--gray700)"}}
+            onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color="var(--gray500)"}}>
+            {dark ? <IcoSun/> : <IcoMoon/>}
+          </button>
+          {/* Toggle Panduan <-> Chat. Saat halaman panduan aktif, tombol diberi
+              aksen hijau agar jelas posisi pengguna sedang di mana. */}
+          <button onClick={()=>setPage(page==="chat"?"panduan":"chat")}
+            title={page==="chat"?"Buka panduan penggunaan":"Kembali ke chat"}
+            style={{
+              display:"flex",alignItems:"center",gap:6,
+              background:page==="panduan"?"var(--g50)":"none",
+              border:`1.5px solid ${page==="panduan"?"var(--g100)":"var(--gray200)"}`,
+              borderRadius:8,padding:"5px 12px",fontSize:12,
+              color:page==="panduan"?"var(--g700)":"var(--gray500)",cursor:"pointer",
+              transition:"all .15s",fontFamily:"var(--sans)",fontWeight:500}}
+            onMouseEnter={e=>{e.currentTarget.style.background="var(--gray100)";e.currentTarget.style.color="var(--gray700)"}}
+            onMouseLeave={e=>{e.currentTarget.style.background=page==="panduan"?"var(--g50)":"none";
+              e.currentTarget.style.color=page==="panduan"?"var(--g700)":"var(--gray500)"}}>
+            {page==="chat" ? <React.Fragment><IcoBook/>Panduan</React.Fragment>
+                           : <React.Fragment><IcoChat/>Chat</React.Fragment>}
+          </button>
+          <button onClick={onLogout} style={{
+            display:"flex",alignItems:"center",gap:6,background:"none",
+            border:"1.5px solid var(--gray200)",borderRadius:8,
+            padding:"5px 12px",fontSize:12,color:"var(--gray500)",cursor:"pointer",
+            transition:"all .15s",fontFamily:"var(--sans)",fontWeight:500}}
+            onMouseEnter={e=>{e.currentTarget.style.background="var(--gray100)";e.currentTarget.style.color="var(--gray700)"}}
+            onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color="var(--gray500)"}}>
+            <IcoLogout/>Keluar
+          </button>
+        </div>
+      </header>
+
+      {/* BODY — halaman panduan menggantikan area chat, topbar tetap tampil.
+          Contoh pertanyaan yang diklik akan memindahkan ke chat lalu mengirimnya
+          (jeda singkat memberi waktu render halaman chat sebelum pesan masuk). */}
+      {page==="panduan" ? (
+        <PanduanPage onTryExample={(q)=>{ setPage("chat"); setTimeout(()=>send(q),80); }}/>
+      ) : (
+      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+
+        {/* sidebar */}
+        <aside style={{width:210,flexShrink:0,background:"var(--white)",
+          borderRight:"1.5px solid var(--gray100)",padding:"18px 12px",
+          display:"flex",flexDirection:"column",gap:4}}>
+          <p style={{fontSize:10,fontWeight:600,color:"var(--gray400)",letterSpacing:"1px",
+            textTransform:"uppercase",marginBottom:6,paddingLeft:6}}>Quick Commands</p>
+          {CMDS.map(c=>(
+            <button key={c.label} onClick={()=>send(c.label)}
+              style={{background:"none",border:"none",borderRadius:8,padding:"8px 10px",
+                display:"flex",alignItems:"center",gap:9,cursor:"pointer",
+                textAlign:"left",width:"100%",color:"var(--gray600)",transition:"all .13s"}}
+              onMouseEnter={e=>{e.currentTarget.style.background="var(--g50)";e.currentTarget.style.color="var(--g700)"}}
+              onMouseLeave={e=>{e.currentTarget.style.background="none";e.currentTarget.style.color="var(--gray600)"}}>
+              <span style={{color:"var(--g500)",flexShrink:0}}>{c.icon}</span>
+              <div>
+                <div style={{fontSize:12,fontWeight:500,fontFamily:"var(--mono)"}}>{c.label}</div>
+                <div style={{fontSize:10,color:"var(--gray400)",marginTop:1}}>{c.desc}</div>
+              </div>
+            </button>
+          ))}
+          <div style={{marginTop:"auto",padding:"12px 8px 0",borderTop:"1px solid var(--gray100)"}}>
+            <p style={{fontSize:10,color:"var(--gray400)",lineHeight:1.65}}>
+              <strong style={{color:"var(--gray600)"}}>Contoh:</strong><br/>
+              <span style={{fontFamily:"var(--mono)",color:"var(--g700)",fontSize:10}}>
+                Ada brute force dari IP mana?
+              </span>
+            </p>
+          </div>
+        </aside>
+
+        {/* chat */}
+        <main style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{flex:1,overflowY:"auto",padding:"22px 26px",display:"flex",flexDirection:"column",gap:14}}>
+            {msgs.map((m,i)=><Bubble key={i} msg={m}/>)}
+            {thinking && <ThinkingBubble text={thinking}/>}
+            <div ref={bottom}/>
+          </div>
+
+          {/* input */}
+          <div style={{background:"var(--white)",borderTop:"1.5px solid var(--gray100)",padding:"14px 26px",flexShrink:0}}>
+            <div style={{display:"flex",gap:9,alignItems:"center"}}>
+              <input ref={inputEl} value={input}
+                onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+                placeholder="Tanyakan tentang log keamanan..."
+                disabled={status!=="open"}
+                style={{flex:1,border:"1.5px solid var(--gray200)",borderRadius:11,
+                  padding:"12px 16px",fontSize:14,color:"var(--gray900)",
+                  background:status!=="open"?"var(--gray50)":"var(--white)",
+                  outline:"none",transition:"border .15s,box-shadow .15s",fontFamily:"var(--sans)"}}
+                onFocus={e=>{e.target.style.borderColor="var(--g400)";e.target.style.boxShadow="0 0 0 3px rgba(16,185,129,.1)"}}
+                onBlur={e=>{e.target.style.borderColor="var(--gray200)";e.target.style.boxShadow="none"}}
+              />
+              <button onClick={()=>send()} disabled={!canSend}
+                style={{width:46,height:46,borderRadius:11,border:"none",flexShrink:0,
+                  background:canSend?"linear-gradient(135deg,var(--g700),var(--g500))":"var(--gray100)",
+                  color:canSend?"var(--white)":"var(--gray400)",
+                  cursor:canSend?"pointer":"not-allowed",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  boxShadow:canSend?"0 3px 10px rgba(16,185,129,.28)":"none",transition:"all .18s"}}>
+                <IcoSend/>
+              </button>
+            </div>
+            <p style={{marginTop:7,fontSize:11,color:"var(--gray400)",textAlign:"center"}}>
+              Enter untuk kirim &nbsp;·&nbsp; /full_analyze laporan lengkap &nbsp;·&nbsp; /reload muat log &nbsp;·&nbsp; /sync ambil log baru &nbsp;·&nbsp; /help panduan
+            </p>
+          </div>
+        </main>
+      </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   ROOT
+════════════════════════════════════════ */
+function App(){
+  const [auth,setAuth] = useState(()=>{
+    try{ return JSON.parse(sessionStorage.getItem("soca_auth")); }catch{ return null; }
+  });
+  const [dark,setDark] = useState(()=> localStorage.getItem("soca_dark")==="1");
+
+  useEffect(()=>{
+    document.documentElement.classList.toggle("dark",dark);
+    localStorage.setItem("soca_dark", dark?"1":"0");
+  },[dark]);
+
+  const toggleDark = ()=>setDark(d=>!d);
+  const login  = a=>{ sessionStorage.setItem("soca_auth",JSON.stringify(a)); setAuth(a); };
+  const logout = ()=>{ sessionStorage.removeItem("soca_auth"); setAuth(null); };
+  return auth
+    ? <ChatApp auth={auth} onLogout={logout} dark={dark} toggleDark={toggleDark}/>
+    : <LoginScreen onLogin={login} dark={dark} toggleDark={toggleDark}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
